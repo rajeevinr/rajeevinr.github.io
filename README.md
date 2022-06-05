@@ -1,2 +1,2 @@
 
-('https://rajeevinr.io')[website]
+(https://rajeevinr.io)
