@@ -1,2 +1,2 @@
 
-(https://rajeevinr.gitub.io)
+(https://rajeevinr.github.io)
