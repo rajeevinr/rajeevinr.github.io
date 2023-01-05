@@ -45,6 +45,7 @@
                      text-decoration: wavy;
                      text-align: left;
               }
+              
        </style>
 </head>
 <body>
@@ -54,6 +55,104 @@
               <h3>Welcome To IN Media</h3>
               <h4>the global community</h4><hr>
        </header>
+           <div class="main center">
+
+        <div class="box center">
+
+            <img src="https://pbs.twimg.com/profile_images/1542575730856407040/d7Ay5fIX.jpg"  alt="">
+
+            <div>
+
+                <p class="user_name">Rajeev Sharma</p>
+
+                <p class="skill">Data Scientist</p>
+
+            </div>
+
+            <div class="arr_container center">
+
+                <i class="bi bi-arrow-right"></i>
+
+            </div>
+
+            <div class="left_container off">
+
+                 <p>Skills</p>
+
+                 <div class="skills">
+
+                    <div>Python</div>
+
+                    <div>SQL</div>
+
+                    <div>C++</div>
+
+                    <div>R</div>
+
+            </div>
+
+            <div class="icons">
+
+                <a href="href="https://github.com/rajeevinr"><i class="bi bi-github"></i></a>
+
+                <i class="bi bi-facebook" href="https://facebook.com/rajeev.inr"></i>
+
+                <i class="bi bi-twitter" href="https://twitter.com/rajeev_inr"></i>
+
+                <i class="bi bi-linkedin" href="linkedin.com/rajeev-inr"></i>
+
+            </div>
+
+            <div class="cancel center">
+
+                <i class="bi bi-arrow-up-left"></i>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+        <script>
+                   window.onload = function () {
+
+    const clc = document.querySelector('.cancel');
+
+const arr = document.querySelector('.arr_container');
+
+const left_container = document.querySelector('.left_container');
+
+arr.addEventListener('click', () => {
+
+    arr.classList.add('active_arr');
+
+    if(left_container.classList.contains('off')){
+
+        left_container.classList.remove('off');
+
+        left_container.classList.add('active');
+
+    }
+
+});
+
+clc.addEventListener('click', ()=> {
+
+    arr.classList.remove('active_arr');
+
+    if(left_container.classList.contains('active')){
+
+        left_container.classList.remove('active');
+
+        left_container.classList.add('off');
+
+    }
+
+});
+
+}
+           </script>
        <section>
               <div>
                      <div>
@@ -76,5 +175,6 @@
               <a href="https://github.com/rajeevinr">Github</a>
               <a href="https://znap.link/rajeev_inr">Profile</a>
        </footer>
+                                                    
 </body>
 </html>
