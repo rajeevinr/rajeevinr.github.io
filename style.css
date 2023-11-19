@@ -1,0 +1,27 @@
+body{
+    background-color: darkslategrey;
+    background-image: "breating.gif";
+}
+a{
+    font-family: 'Times New Roman', Times, serif;
+    color: ivory;
+    text-decoration: none;
+    font:bold;
+    align-items: center;
+    text-align: center;
+
+}
+div{
+    padding: 5px;
+    margin: 5px;
+}
+#card {
+    background-color: rgb(46, 46, 69);
+    height: 120px;
+    width: 90px;
+    padding: 5px;
+    margin: 5px;
+    border: 1px solid orangered;
+    border-radius: 6px;
+    display: inline-block;
+}
