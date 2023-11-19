@@ -1,5 +1,5 @@
 body{
-    background-color: darkslategrey;
+    background-color: rgb(19, 1, 32);
     background-image: "breating.gif";
 }
 a{
@@ -16,12 +16,12 @@ div{
     margin: 5px;
 }
 #card {
-    background-color: rgb(46, 46, 69);
+    background-color: rgb(16, 20, 48);
     height: 120px;
     width: 90px;
     padding: 5px;
     margin: 5px;
-    border: 1px solid orangered;
+    border: 1px solid rgb(55, 49, 137);
     border-radius: 6px;
     display: inline-block;
 }
