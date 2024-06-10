@@ -1,3 +1,26 @@
+#hidden-content {
+  display: none; /* Hide the content by default */
+}
+
+/* Button Styles */
+#continue-btn {
+  background-color: #007bff; /* Blue color */
+  color: #ffffff; /* White text color */
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+  display: inline-block; /* kept */
+  margin: 0 auto; /* added */
+  text-align: center; /* added */
+}
+
+#continue-btn:hover {
+  background-color: #0069d9; /* Darker blue on hover */
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
