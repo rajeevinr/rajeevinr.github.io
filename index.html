@@ -16,6 +16,12 @@
             margin: 0;
             background-color: #1a202c; /* Dark background for the body */
             color: #e2e8f0; /* Light text color for contrast */
+            min-height: 100vh; /* Ensure body takes full viewport height for footer positioning */
+            display: flex;
+            flex-direction: column;
+        }
+        main {
+            flex-grow: 1; /* Allow main content to take up available space */
         }
     </style>
   </head>
