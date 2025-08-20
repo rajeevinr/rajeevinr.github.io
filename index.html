@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ultra-Fast Canvas Drawing App</title>
+  <style>
+    :root{
+      --bg: #0b1020;
+      --panel: rgba(255,255,255,0.06);
+      --panel-2: rgba(255,255,255,0.12);
+      --text: #e6e9ef;
+      --muted: #9aa3b2;
+      --accent: #7c5cff;
+      --accent-2: #14b8a6;
+      --danger: #ef4444;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.25);
+      --radius: 18px;
+      --glass: blur(8px) saturate(125%);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0; background: radial-gradient(1200px 600px at 70% 10%, #16213a 0%, #0b1020 55%  ), #0b1020; color:var(--text); font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      overflow:hidden;
+    }
+    .app{ display:grid; grid-template-rows: auto 1fr auto; height:100%; gap:10px; padding:14px; }
+
+    /* Top bar */
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--panel); border:1px solid #ffffff1a; border-radius: var(--radius);
+      backdrop-filter: var(--glass); box-shadow: var(--shadow);
+    }
+    .brand{ display:flex; align-items:center; gap:10px; }
+    .brand .logo{ width:26px; height:26px; display:grid; place-items:center; border-radius:8px; background:linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: inset 0 0 0 2px #ffffff30; }
+    .brand .title{ font-weight:700; letter-spacing:.3px; }
+    .row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+    /* Panel button */
+    .btn{ display:inline-flex; align-items:center; gap:8px; border:1px solid #ffffff1a; background:var(--panel); color:var(--text); padding:10px 12px; border-radius:14px; cursor:pointer; user-select:none; transition: .15s ease; backdrop-filter: var(--glass);} 
+    .btn:hover{ background:var(--panel-2); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0); }
+    .btn[aria-pressed="true"], .btn.active{ outline:2px solid var(--accent); background: #1b1f33; }
+    .btn .kbd{ font-size:11px; padding:2px 6px; border-radius:8px; background:#ffffff12; color:#cbd5e1; border:1px solid #ffffff1a; }
+
+    .sep{ width:1px; height:32px; background:#ffffff18; margin:0 6px; }
+
+    /* Work area */
+    .work{ position:relative; border:1px solid #ffffff1a; border-radius: var(--radius); overflow:hidden; background: #0a0f1e; box-shadow: var(--shadow); }
+    .canvas-wrap{ position:absolute; inset:0; }
+    canvas{ position:absolute; inset:0; width:100%; height:100%; image-rendering: optimizeQuality; }
+    #main{ z-index:1; }
+    #overlay{ z-index:2; pointer-events:none; }
+
+    /* Left toolbar */
+    .toolbar{
+      position:absolute; top:16px; left:16px; display:flex; flex-direction:column; gap:10px; z-index:5;
+    }
+    .tool{ width:44px; height:44px; display:grid; place-items:center; border-radius:14px; border:1px solid #ffffff1a; background:var(--panel); cursor:pointer; backdrop-filter: var(--glass); box-shadow: var(--shadow); }
+    .tool:hover{ background:var(--panel-2); }
+    .tool.active{ outline:2px solid var(--accent); background:#1b1f33; }
+
+    /* Right controls */
+    .controls{ position:absolute; top:16px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:5; width:320px; max-width:36vw; }
+    .card{ background:var(--panel); border:1px solid #ffffff1a; border-radius: var(--radius); padding:12px; box-shadow: var(--shadow); backdrop-filter: var(--glass); }
+    .card h3{ margin:4px 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+    .grid{ display:grid; gap:10px; }
+    .grid.cols-2{ grid-template-columns: 1fr 1fr; }
+    label{ font-size:12px; color:#cbd5e1; }
+    input[type="range"]{ width:100%; }
+    input[type="color"]{ width:100%; height:36px; border-radius:12px; border:1px solid #ffffff1a; background:#0000; }
+    select, input[type="number"], input[type="text"]{ width:100%; padding:8px 10px; border-radius:12px; border:1px solid #ffffff1a; background:#101735; color:var(--text); }
+    .row.wrap{ flex-wrap:wrap; }
+
+    /* Bottom bar */
+    .bottombar{ display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--panel); border:1px solid #ffffff1a; border-radius: var(--radius); box-shadow: var(--shadow); }
+    .status{ color:#a3aab9; font-size:12px; }
+
+    /* Toast */
+    .toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:10px 14px; background:#111827; border:1px solid #ffffff22; border-radius:12px; box-shadow: var(--shadow); display:none; z-index:100; }
+
+    /* Tooltip */
+    .tool[data-tip]{ position:relative; }
+    .tool[data-tip]::after{ content:attr(data-tip); position:absolute; left:54px; white-space:nowrap; top:50%; transform:translateY(-50%); background:#0f172a; color:#cbd5e1; border:1px solid #ffffff22; padding:6px 8px; border-radius:10px; pointer-events:none; opacity:0; transition:.12s; }
+    .tool:hover::after{ opacity:1; }
+
+    /* Grid background toggle */
+    .grid-bg{ position:absolute; inset:0; background-image: linear-gradient(#ffffff10 1px, transparent 1px), linear-gradient(90deg, #ffffff10 1px, transparent 1px); background-size: 40px 40px, 40px 40px; background-position: 0 0, 0 0; pointer-events:none; z-index:0; display:none; }
+    .grid-bg.show{ display:block; }
+
+    .hidden{ display:none; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">🎨</div>
+        <div class="title">Ultra-Fast Canvas</div>
+      </div>
+      <div class="row wrap">
+        <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)">⟲ Undo <span class="kbd">Ctrl+Z</span></button>
+        <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)">⟳ Redo <span class="kbd">Ctrl+Y</span></button>
+        <span class="sep"></span>
+        <button class="btn" id="importBtn" title="Import image">📥 Import</button>
+        <button class="btn" id="exportPNGBtn" title="Export as PNG">📤 PNG</button>
+        <button class="btn" id="exportJPGBtn" title="Export as JPG">JPG</button>
+        <button class="btn" id="copyClipboardBtn" title="Copy to Clipboard">📋 Copy</button>
+        <span class="sep"></span>
+        <button class="btn" id="resetViewBtn" title="Reset zoom/pan">🔎 Reset View</button>
+        <label class="btn" for="gridToggle"><input id="gridToggle" type="checkbox"/> Grid</label>
+      </div>
+    </div>
+
+    <div class="work" id="work">
+      <div class="grid-bg" id="gridBg"></div>
+      <div class="canvas-wrap">
+        <canvas id="main"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+
+      <!-- Left toolbar -->
+      <div class="toolbar" id="toolbar">
+        <div class="tool active" data-tip="Brush (B)" data-tool="brush">🖌️</div>
+        <div class="tool" data-tip="Eraser (E)" data-tool="eraser">🩹</div>
+        <div class="tool" data-tip="Line (L)" data-tool="line">📏</div>
+        <div class="tool" data-tip="Rectangle (R)" data-tool="rect">⬛</div>
+        <div class="tool" data-tip="Ellipse (O)" data-tool="ellipse">🟠</div>
+        <div class="tool" data-tip="Text (T)" data-tool="text">🔤</div>
+        <div class="tool" data-tip="Eyedropper (I)" data-tool="eyedropper">🎯</div>
+        <div class="tool" data-tip="Pan/Hand (Space)" data-tool="hand">✋</div>
+      </div>
+
+      <!-- Right controls -->
+      <div class="controls">
+        <div class="card">
+          <h3>Stroke</h3>
+          <div class="grid cols-2">
+            <label>Color<input type="color" id="strokeColor" value="#ffffff"/></label>
+            <label>Width<input type="range" id="strokeWidth" min="1" max="120" value="6"/></label>
+            <label>Opacity<input type="range" id="strokeAlpha" min="0" max="1" step="0.01" value="1"/></label>
+            <label>Cap
+              <select id="lineCap">
+                <option value="round">round</option>
+                <option value="butt">butt</option>
+                <option value="square">square</option>
+              </select>
+            </label>
+            <label>Join
+              <select id="lineJoin">
+                <option value="round">round</option>
+                <option value="miter">miter</option>
+                <option value="bevel">bevel</option>
+              </select>
+            </label>
+            <label>Dash (px, comma)
+              <input id="dash" type="text" placeholder="e.g. 8,6" />
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Fill</h3>
+          <div class="grid cols-2">
+            <label>Color<input type="color" id="fillColor" value="#000000"/></label>
+            <label>Opacity<input type="range" id="fillAlpha" min="0" max="1" step="0.01" value="0"/></label>
+            <label class="row" style="grid-column:1/-1; align-items:center; gap:8px;">
+              <input id="fillEnabled" type="checkbox"/> Enable Fill
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Canvas</h3>
+          <div class="grid cols-2">
+            <label>Zoom <input type="range" id="zoom" min="0.1" max="4" step="0.01" value="1"/></label>
+            <label>Clear <button class="btn" id="clearBtn">🧹 Clear</button></label>
+            <label>Background <input type="color" id="bgColor" value="#0a0f1e"/></label>
+            <label>Size
+              <div class="row" style="gap:6px;">
+                <input type="number" id="canvasW" min="64" step="1" value="1920"/>
+                <input type="number" id="canvasH" min="64" step="1" value="1080"/>
+                <button class="btn" id="resizeBtn">Resize</button>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Shortcuts</h3>
+          <div class="row" style="flex-wrap:wrap; gap:6px; font-size:12px; color:#a7b0c0;">
+            <span class="kbd">B</span>
+            <span class="kbd">E</span>
+            <span class="kbd">L</span>
+            <span class="kbd">R</span>
+            <span class="kbd">O</span>
+            <span class="kbd">T</span>
+            <span class="kbd">I</span>
+            <span class="kbd">Ctrl/Cmd + Z/Y</span>
+            <span class="kbd">Mouse Wheel = Zoom</span>
+            <span class="kbd">Space + drag = Pan</span>
+            <span class="kbd">Shift = constrain</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <div class="row">
+        <div class="status" id="status">Ready.</div>
+      </div>
+      <div class="row" style="gap:6px;">
+        <span class="status">Zoom: <span id="zoomDisplay">100%</span></span>
+        <span class="sep"></span>
+        <span class="status">Pos: <span id="posDisplay">0, 0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" class="hidden" />
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function(){
+    // ----- DOM -----
+    const d = document;
+    const work = d.getElementById('work');
+    const main = d.getElementById('main');
+    const overlay = d.getElementById('overlay');
+    const toolbar = d.getElementById('toolbar');
+    const statusEl = d.getElementById('status');
+    const zoomSlider = d.getElementById('zoom');
+    const zoomDisplay = d.getElementById('zoomDisplay');
+    const posDisplay = d.getElementById('posDisplay');
+    const gridBg = d.getElementById('gridBg');
+    const gridToggle = d.getElementById('gridToggle');
+    const fileInput = d.getElementById('fileInput');
+    const toastEl = d.getElementById('toast');
+
+    // Controls
+    const strokeColor = d.getElementById('strokeColor');
+    const strokeWidth = d.getElementById('strokeWidth');
+    const strokeAlpha = d.getElementById('strokeAlpha');
+    const lineCap = d.getElementById('lineCap');
+    const lineJoin = d.getElementById('lineJoin');
+    const dash = d.getElementById('dash');
+    const fillColor = d.getElementById('fillColor');
+    const fillAlpha = d.getElementById('fillAlpha');
+    const fillEnabled = d.getElementById('fillEnabled');
+    const clearBtn = d.getElementById('clearBtn');
+    const bgColor = d.getElementById('bgColor');
+    const canvasW = d.getElementById('canvasW');
+    const canvasH = d.getElementById('canvasH');
+    const resizeBtn = d.getElementById('resizeBtn');
+    const undoBtn = d.getElementById('undoBtn');
+    const redoBtn = d.getElementById('redoBtn');
+    const importBtn = d.getElementById('importBtn');
+    const exportPNGBtn = d.getElementById('exportPNGBtn');
+    const exportJPGBtn = d.getElementById('exportJPGBtn');
+    const copyClipboardBtn = d.getElementById('copyClipboardBtn');
+    const resetViewBtn = d.getElementById('resetViewBtn');
+
+    // ----- Canvas Contexts -----
+    const ctx = main.getContext('2d');
+    const octx = overlay.getContext('2d');
+    const buffer = document.createElement('canvas');
+    const bctx = buffer.getContext('2d');
+
+    // ----- State -----
+    const state = {
+      tool: 'brush',
+      isDown: false,
+      start: {x:0,y:0},
+      last: {x:0,y:0},
+      world: {x:0,y:0},
+      scale: 1,
+      offset: {x:0,y:0},
+      dpr: Math.max(1, window.devicePixelRatio || 1),
+      history: [],
+      future: [],
+      maxHistory: 60,
+      bg: '#0a0f1e',
+      spacePanning: false,
+      dragging: false,
+    };
+
+    function setStatus(t){ statusEl.textContent = t; }
+    function toast(msg){ toastEl.textContent = msg; toastEl.style.display='block'; clearTimeout(toastEl._t); toastEl._t = setTimeout(()=>{toastEl.style.display='none';}, 1600); }
+
+    // ----- Sizing & High-DPI -----
+    function fitCanvases(){
+      const rect = work.getBoundingClientRect();
+      [main, overlay].forEach(c => {
+        c.width = rect.width * state.dpr;
+        c.height = rect.height * state.dpr;
+        c.style.width = rect.width + 'px';
+        c.style.height = rect.height + 'px';
+      });
+      octx.setTransform(1,0,0,1,0,0); octx.clearRect(0,0,overlay.width, overlay.height);
+      applyView();
+      drawAll();
+    }
+
+    function resizeDocument(w, h){
+      const old = document.createElement('canvas');
+      old.width = main.width; old.height = main.height;
+      old.getContext('2d').drawImage(main, 0,0);
+
+      buffer.width = w * state.dpr; buffer.height = h * state.dpr;
+      bctx.fillStyle = state.bg; bctx.fillRect(0,0,buffer.width, buffer.height);
+      bctx.drawImage(old, 0,0);
+
+      // Resize work area to keep full screen canvas; we just map view to buffer
+      drawAll();
+    }
+
+    // View transform helpers
+    function applyView(){
+      ctx.setTransform(state.scale*state.dpr,0,0,state.scale*state.dpr, state.offset.x*state.dpr, state.offset.y*state.dpr);
+    }
+    function screenToWorld(x, y){
+      const rect = main.getBoundingClientRect();
+      const sx = (x - rect.left) * state.dpr;
+      const sy = (y - rect.top) * state.dpr;
+      return {
+        x: (sx - state.offset.x*state.dpr) / (state.scale*state.dpr),
+        y: (sy - state.offset.y*state.dpr) / (state.scale*state.dpr)
+      };
+    }
+
+    // ----- Drawing Core -----
+    function drawAll(){
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,main.width, main.height);
+      applyView();
+      // Paint buffer to main with transform
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(buffer, 0, 0);
+      updateGrid();
+    }
+
+    function updateGrid(){
+      const size = 40 * state.scale; // scale grid with zoom
+      gridBg.style.backgroundSize = `${size}px ${size}px, ${size}px ${size}px`;
+    }
+
+    function commitHistory(){
+      // Keep a bitmap snapshot for performance
+      const snap = new Image();
+      snap.src = buffer.toDataURL('image/png');
+      state.history.push(snap);
+      if (state.history.length > state.maxHistory) state.history.shift();
+      state.future = [];
+    }
+
+    function restoreFrom(img){
+      bctx.setTransform(1,0,0,1,0,0);
+      bctx.clearRect(0,0,buffer.width, buffer.height);
+      // Fill background to preserve bg color on transparent areas
+      bctx.fillStyle = state.bg; bctx.fillRect(0,0,buffer.width, buffer.height);
+      bctx.drawImage(img, 0, 0);
+      drawAll();
+    }
+
+    function undo(){
+      if (!state.history.length) return;
+      const current = new Image(); current.src = buffer.toDataURL('image/png');
+      state.future.push(current);
+      const prev = state.history.pop();
+      prev.onload = ()=> restoreFrom(prev);
+    }
+    function redo(){
+      const img = state.future.pop();
+      if (!img) return; 
+      const current = new Image(); current.src = buffer.toDataURL('image/png');
+      state.history.push(current);
+      img.onload = ()=> restoreFrom(img);
+    }
+
+    function applyStroke(ctxLike){
+      ctxLike.globalAlpha = parseFloat(strokeAlpha.value);
+      ctxLike.lineWidth = parseFloat(strokeWidth.value);
+      ctxLike.strokeStyle = strokeColor.value;
+      ctxLike.lineCap = lineCap.value;
+      ctxLike.lineJoin = lineJoin.value;
+      const arr = dash.value.split(',').map(v=>parseFloat(v.trim())).filter(v=>!isNaN(v) && v>=0);
+      ctxLike.setLineDash(arr);
+    }
+    function applyFill(ctxLike){
+      ctxLike.globalAlpha = parseFloat(fillAlpha.value);
+      ctxLike.fillStyle = fillColor.value;
+    }
+
+    // Brush drawing with smoothing
+    const points = [];
+    function brushDown(p){
+      points.length = 0; points.push(p);
+    }
+    function brushMove(p){
+      points.push(p);
+      if(points.length < 2) return;
+      // Draw to buffer incrementally for speed
+      bctx.save();
+      applyStroke(bctx);
+      bctx.globalCompositeOperation = state.tool==='eraser' ? 'destination-out' : 'source-over';
+      bctx.beginPath();
+      const last = points[points.length-2];
+      bctx.moveTo(last.x, last.y);
+      bctx.lineTo(p.x, p.y);
+      bctx.stroke();
+      bctx.restore();
+    }
+
+    // Shapes preview on overlay
+    function previewShape(type, a, b){
+      octx.setTransform(1,0,0,1,0,0);
+      octx.clearRect(0,0,overlay.width, overlay.height);
+      octx.save();
+      // match view transform
+      octx.setTransform(state.scale*state.dpr,0,0,state.scale*state.dpr, state.offset.x*state.dpr, state.offset.y*state.dpr);
+      applyStroke(octx);
+      applyFill(octx);
+      octx.globalAlpha = 1.0;
+      octx.lineWidth = parseFloat(strokeWidth.value);
+      octx.strokeStyle = strokeColor.value + 'ff';
+      const fx = (x)=>x, fy=(y)=>y; // already in world coords
+
+      const w = fx(b.x)-fx(a.x), h = fy(b.y)-fy(a.y);
+      if(type==='line'){
+        octx.beginPath(); octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y); octx.stroke();
+      } else if(type==='rect'){
+        octx.beginPath(); octx.rect(a.x, a.y, w, h); if(fillEnabled.checked && fillAlpha.value>0) octx.fill(); octx.stroke();
+      } else if(type==='ellipse'){
+        octx.beginPath(); octx.ellipse(a.x + w/2, a.y + h/2, Math.abs(w/2), Math.abs(h/2), 0, 0, Math.PI*2);
+        if(fillEnabled.checked && fillAlpha.value>0) octx.fill(); octx.stroke();
+      }
+      octx.restore();
+    }
+
+    function drawShape(type, a, b){
+      bctx.save();
+      applyStroke(bctx);
+      applyFill(bctx);
+      bctx.globalCompositeOperation = 'source-over';
+      const w = b.x-a.x, h = b.y-a.y;
+      if(type==='line'){
+        bctx.beginPath(); bctx.moveTo(a.x, a.y); bctx.lineTo(b.x, b.y); bctx.stroke();
+      } else if(type==='rect'){
+        bctx.beginPath(); bctx.rect(a.x, a.y, w, h); if(fillEnabled.checked && fillAlpha.value>0) bctx.fill(); bctx.stroke();
+      } else if(type==='ellipse'){
+        bctx.beginPath(); bctx.ellipse(a.x + w/2, a.y + h/2, Math.abs(w/2), Math.abs(h/2), 0, 0, Math.PI*2);
+        if(fillEnabled.checked && fillAlpha.value>0) bctx.fill(); bctx.stroke();
+      }
+      bctx.restore();
+    }
+
+    // Text tool
+    function placeText(p){
+      const text = prompt('Enter text:');
+      if(!text) return;
+      bctx.save();
+      applyStroke(bctx); applyFill(bctx);
+      const size = Math.max(12, parseInt(strokeWidth.value) * 5);
+      bctx.font = `${size}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+      bctx.textBaseline = 'top';
+      if(fillEnabled.checked && fillAlpha.value>0){ bctx.globalAlpha = parseFloat(fillAlpha.value); bctx.fillStyle = fillColor.value; bctx.fillText(text, p.x, p.y); }
+      bctx.globalAlpha = parseFloat(strokeAlpha.value); bctx.strokeStyle = strokeColor.value; bctx.lineWidth = 1; bctx.strokeText(text, p.x, p.y);
+      bctx.restore();
+      commitHistory(); drawAll();
+    }
+
+    // Eyedropper
+    async function pickColor(p){
+      if (window.Eyedropper){
+        try{ const ed = new Eyedropper(); const {sRGBHex} = await ed.open(); strokeColor.value = sRGBHex; toast('Picked: '+sRGBHex);}catch(e){/* cancelled */}
+        return;
+      }
+      // Fallback: sample from buffer
+      const temp = d.createElement('canvas'); temp.width=1; temp.height=1; const tctx = temp.getContext('2d');
+      tctx.drawImage(buffer, Math.floor(p.x), Math.floor(p.y), 1,1, 0,0,1,1);
+      const data = tctx.getImageData(0,0,1,1).data;
+      const hex = '#'+[0,1,2].map(i=>data[i].toString(16).padStart(2,'0')).join('');
+      strokeColor.value = hex; toast('Picked: '+hex);
+    }
+
+    // ----- Events -----
+    function setTool(t){
+      state.tool = t;
+      [...toolbar.children].forEach(el=> el.classList.toggle('active', el.dataset.tool===t));
+      setStatus('Tool: '+t);
+    }
+
+    toolbar.addEventListener('click', (e)=>{
+      const t = e.target.closest('.tool'); if(!t) return;
+      setTool(t.dataset.tool);
+    });
+
+    gridToggle.addEventListener('change', ()=>{
+      gridBg.classList.toggle('show', gridToggle.checked);
+      drawAll();
+    });
+
+    work.addEventListener('wheel', (e)=>{
+      const delta = Math.sign(e.deltaY);
+      const factor = 1 - delta * 0.1; // zoom step
+      const rect = work.getBoundingClientRect();
+      const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+      const before = screenToWorld(e.clientX, e.clientY);
+      state.scale = Math.min(4, Math.max(0.1, state.scale * factor));
+      const after = screenToWorld(e.clientX, e.clientY);
+      state.offset.x += (mx/state.dpr) - (mx/state.dpr) + (after.x - before.x)*state.scale;
+      state.offset.y += (my/state.dpr) - (my/state.dpr) + (after.y - before.y)*state.scale;
+      zoomSlider.value = state.scale.toFixed(2);
+      zoomDisplay.textContent = Math.round(state.scale*100)+'%';
+      applyView(); drawAll();
+      e.preventDefault();
+    }, {passive:false});
+
+    zoomSlider.addEventListener('input', ()=>{
+      state.scale = parseFloat(zoomSlider.value);
+      zoomDisplay.textContent = Math.round(state.scale*100)+'%';
+      applyView(); drawAll();
+    });
+
+    resetViewBtn.addEventListener('click', ()=>{ state.scale=1; state.offset.x = state.offset.y = 0; zoomSlider.value='1'; zoomDisplay.textContent='100%'; applyView(); drawAll(); });
+
+    // Pointer Handling
+    function onDown(e){
+      const p = getPoint(e);
+      state.isDown = true; state.start = p; state.last = p; state.dragging=false;
+      if(state.tool==='text'){ placeText(p); state.isDown=false; return; }
+      if(state.tool==='eyedropper'){ pickColor(p); state.isDown=false; return; }
+      if(state.tool==='hand' || state.spacePanning){ state.dragging = true; return; }
+      if(state.tool==='brush' || state.tool==='eraser'){ brushDown(p); }
+      commitHistory();
+    }
+    function onMove(e){
+      const p = getPoint(e);
+      state.world = p;
+      posDisplay.textContent = `${Math.round(p.x)}, ${Math.round(p.y)}`;
+      if(!state.isDown){ drawAll(); return; }
+      if(state.dragging){
+        const dx = (e.movementX || 0); const dy = (e.movementY || 0);
+        state.offset.x += dx / state.dpr; state.offset.y += dy / state.dpr;
+        applyView(); drawAll(); return;
+      }
+      if(state.tool==='brush' || state.tool==='eraser'){
+        brushMove(p); drawAll(); return;
+      }
+      if(['line','rect','ellipse'].includes(state.tool)){
+        const a = state.start, b = {...p};
+        if(e.shiftKey){ // constrain
+          if(state.tool==='line'){
+            const dx = b.x-a.x, dy=b.y-a.y; const angle = Math.atan2(dy,dx); const snap = Math.round(angle/(Math.PI/4))*(Math.PI/4); const r = Math.hypot(dx,dy); b.x = a.x + Math.cos(snap)*r; b.y = a.y + Math.sin(snap)*r;
+          } else {
+            const s = Math.max(Math.abs(b.x-a.x), Math.abs(b.y-a.y)); b.x = a.x + Math.sign(b.x-a.x)*s; b.y = a.y + Math.sign(b.y-a.y)*s;
+          }
+        }
+        previewShape(state.tool, a, b); return;
+      }
+    }
+    function onUp(e){
+      if(!state.isDown) return; state.isDown=false;
+      if(state.dragging){ state.dragging=false; return; }
+      const p = getPoint(e);
+      if(state.tool==='brush' || state.tool==='eraser'){ drawAll(); return; }
+      if(['line','rect','ellipse'].includes(state.tool)){
+        const a = state.start, b = p; drawShape(state.tool, a, b); octx.setTransform(1,0,0,1,0,0); octx.clearRect(0,0,overlay.width, overlay.height); drawAll(); return; }
+    }
+
+    function getPoint(e){
+      const touch = e.touches && e.touches[0];
+      const x = touch? touch.clientX : (e.clientX ?? e.x);
+      const y = touch? touch.clientY : (e.clientY ?? e.y);
+      return screenToWorld(x, y);
+    }
+
+    work.addEventListener('pointerdown', onDown);
+    work.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+
+    // Touch support: prevent scrolling
+    work.addEventListener('touchstart', e=> e.preventDefault(), {passive:false});
+    work.addEventListener('touchmove', e=> e.preventDefault(), {passive:false});
+
+    // Keys
+    window.addEventListener('keydown', (e)=>{
+      if(e.key===' '){ state.spacePanning=true; setTool('hand'); }
+      else if(e.key==='b' || e.key==='B') setTool('brush');
+      else if(e.key==='e' || e.key==='E') setTool('eraser');
+      else if(e.key==='l' || e.key==='L') setTool('line');
+      else if(e.key==='r' || e.key==='R') setTool('rect');
+      else if(e.key==='o' || e.key==='O') setTool('ellipse');
+      else if(e.key==='t' || e.key==='T') setTool('text');
+      else if(e.key==='i' || e.key==='I') setTool('eyedropper');
+      else if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
+      else if((e.ctrlKey||e.metaKey) && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); }
+      else if(e.key==='+'){ zoomSlider.value=(Math.min(4, parseFloat(zoomSlider.value)+0.1)).toFixed(2); zoomSlider.dispatchEvent(new Event('input')); }
+      else if(e.key==='-'){ zoomSlider.value=(Math.max(0.1, parseFloat(zoomSlider.value)-0.1)).toFixed(2); zoomSlider.dispatchEvent(new Event('input')); }
+    });
+    window.addEventListener('keyup', (e)=>{ if(e.key===' '){ state.spacePanning=false; setTool('brush'); }});
+
+    // Buttons
+    clearBtn.addEventListener('click', ()=>{ bctx.setTransform(1,0,0,1,0,0); bctx.fillStyle = state.bg; bctx.fillRect(0,0,buffer.width, buffer.height); commitHistory(); drawAll(); });
+
+    bgColor.addEventListener('input', ()=>{ state.bg = bgColor.value; drawAll(); });
+
+    resizeBtn.addEventListener('click', ()=>{
+      const w = parseInt(canvasW.value)||1920; const h = parseInt(canvasH.value)||1080;
+      buffer.width = w * state.dpr; buffer.height = h * state.dpr;
+      bctx.fillStyle = state.bg; bctx.fillRect(0,0,buffer.width, buffer.height);
+      commitHistory(); drawAll(); toast(`Canvas ${w}×${h}`);
+    });
+
+    undoBtn.addEventListener('click', undo);
+    redoBtn.addEventListener('click', redo);
+
+    importBtn.addEventListener('click', ()=> fileInput.click());
+    fileInput.addEventListener('change', (e)=>{
+      const f = e.target.files[0]; if(!f) return; const img = new Image(); img.onload = ()=>{ bctx.drawImage(img, 0, 0); commitHistory(); drawAll(); toast('Image imported.'); }; img.src = URL.createObjectURL(f);
+    });
+
+    function exportImage(type='image/png', quality=0.92){
+      const link = d.createElement('a');
+      link.download = `canvas-${Date.now()}.${type==='image/png'?'png':'jpg'}`;
+      link.href = buffer.toDataURL(type, quality);
+      link.click();
+    }
+    exportPNGBtn.addEventListener('click', ()=> exportImage('image/png'));
+    exportJPGBtn.addEventListener('click', ()=> exportImage('image/jpeg', 0.9));
+
+    copyClipboardBtn.addEventListener('click', async ()=>{
+      try{
+        const blob = await new Promise(res=> buffer.toBlob(res));
+        await navigator.clipboard.write([new ClipboardItem({[blob.type]: blob})]);
+        toast('Copied to clipboard!');
+      }catch(err){ toast('Clipboard not supported in this context.'); }
+    });
+
+    // Initialize document buffer size (virtual canvas)
+    function init(){
+      state.bg = bgColor.value;
+      const w = parseInt(canvasW.value), h=parseInt(canvasH.value);
+      buffer.width = w * state.dpr; buffer.height = h * state.dpr;
+      bctx.fillStyle = state.bg; bctx.fillRect(0,0,buffer.width, buffer.height);
+      fitCanvases();
+      zoomDisplay.textContent = '100%';
+      setStatus('Ready. Happy drawing!');
+    }
+
+    window.addEventListener('resize', fitCanvases);
+    init();
+  })();
+  </script>
+</body>
+</html>
